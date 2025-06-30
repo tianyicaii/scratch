@@ -40,24 +40,24 @@ class UserManager {
 // Example usage
 function main(): void {
   console.log('🚀 TypeScript Project Started!');
-  
+
   const userManager = new UserManager();
-  
+
   // Add some sample users
   userManager.addUser({ id: 1, name: 'Alice', email: 'alice@example.com' });
   userManager.addUser({ id: 2, name: 'Bob', email: 'bob@example.com' });
-  
+
   // Display all users
   console.log('All users:', userManager.getAllUsers());
-  
+
   // Get a specific user
   const user = userManager.getUser(1);
   if (user) {
     console.log('Found user:', user);
   }
-  
+
   console.log('✅ Example completed successfully!');
 }
 
 // Run the main function
-main(); 
+main();
