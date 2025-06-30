@@ -1,19 +1,40 @@
 {
-  "name": "typescript-project",
+  "name": "typescript-fullstack-monorepo",
   "version": "1.0.0",
-  "description": "A TypeScript project",
-  "main": "dist/index.js",
+  "description": "A TypeScript Full Stack Monorepo with React + Node.js",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "desktop"
+  ],
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
-    "watch": "tsc --watch",
-    "clean": "rm -rf dist",
-    "format": "prettier --write \"src/**/*.{ts,js,json,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,js,json,md}\"",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "type-check": "tsc --noEmit"
+    "dev": "concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:all": "concurrently -n \"backend,frontend,desktop\" -c \"blue,green,yellow\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:desktop\"",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:desktop": "npm run dev --workspace=desktop",
+    "build": "npm run build --workspaces",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:desktop": "npm run build --workspace=desktop",
+    "start": "concurrently -n \"backend,frontend,desktop\" -c \"blue,green,yellow\" \"npm run start:backend\" \"npm run start:frontend\" \"npm run start:desktop\"",
+    "start:backend": "npm run start --workspace=backend",
+    "start:frontend": "npm run preview --workspace=frontend",
+    "start:desktop": "npm run start --workspace=desktop",
+    "install:all": "npm install",
+    "postinstall": "npm run type-check",
+    "clean": "npm run clean --workspaces && npm run clean:root",
+    "clean:root": "rm -rf node_modules/.cache node_modules/.tmp frontend/node_modules/.tmp frontend/node_modules/.cache backend/node_modules/.tmp backend/node_modules/.cache desktop/node_modules/.tmp desktop/node_modules/.cache frontend/dist backend/dist desktop/dist frontend/build backend/build desktop/build frontend/*.tsbuildinfo backend/*.tsbuildinfo desktop/*.tsbuildinfo frontend/**/*.tsbuildinfo backend/**/*.tsbuildinfo desktop/**/*.tsbuildinfo",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .gitignore",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
+    "type-check": "tsc --build",
+    "type-check:watch": "tsc --build --watch",
+    "test": "npm run test --workspaces --if-present",
+    "deps:update": "npm update --workspaces",
+    "deps:audit": "npm audit --workspaces"
   },
   "keywords": [
     "typescript",
@@ -25,11 +46,15 @@
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "concurrently": "^9.2.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.5.1",
     "prettier": "^3.6.2",
     "ts-node": "^10.9.0",
     "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.0.0"
   }
 }
