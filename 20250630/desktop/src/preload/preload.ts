@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, shell } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
 // 暴露受保护的方法给渲染进程，在没有开启 Node.js 集成的情况下
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -7,23 +7,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPlatform: () => process.platform,
 
   // IPC通信方法
-  fetchWelcomeMessage: () => {
-    console.log('🔗 [Preload] Forwarding fetchWelcomeMessage IPC call to main');
-    return ipcRenderer.invoke('fetch-welcome-message');
-  },
-
-  // 示例：如果需要与主进程通信
-  // sendMessage: (message: string) => ipcRenderer.invoke('send-message', message),
-
-  showContextMenu: () => ipcRenderer.invoke('show-context-menu'),
-  openExternal: (url: string) => shell.openExternal(url),
+  fetchWelcomeMessage: () => ipcRenderer.invoke('fetch-welcome-message'),
+  fetchUserInfo: (token: string) => ipcRenderer.invoke('fetch-user-info', token),
+  verifyToken: (token: string) => ipcRenderer.invoke('verify-token', token),
   login: () => ipcRenderer.send('login'),
-  onOAuthToken: (cb: (token: string) => void) =>
-    ipcRenderer.on('oauth-token', (_event, token: unknown) => {
-      if (typeof token === 'string') {
-        cb(token);
-      }
-    }),
+  logout: () => ipcRenderer.send('logout'),
+  onOAuthToken: (callback: (token: string) => void) => {
+    ipcRenderer.on('oauth-token', (_, token) => callback(token));
+  },
+  onLogoutComplete: (callback: () => void) => {
+    ipcRenderer.on('logout-complete', () => callback());
+  },
+  showContextMenu: () => ipcRenderer.invoke('show-context-menu'),
 });
 
 // 为类型安全，在全局声明这些 API
@@ -33,10 +28,13 @@ declare global {
       getVersion: () => string;
       getPlatform: () => string;
       fetchWelcomeMessage: () => Promise<string>;
+      fetchUserInfo: (token: string) => Promise<any>;
+      verifyToken: (token: string) => Promise<boolean>;
       showContextMenu: () => void;
-      openExternal: (url: string) => void;
       login: () => void;
+      logout: () => void;
       onOAuthToken: (cb: (token: string) => void) => void;
+      onLogoutComplete: (cb: () => void) => void;
     };
   }
 }

@@ -1,6 +1,10 @@
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import * as path from 'path';
 
+// Disable proxy for local requests
+process.env.NO_PROXY = 'localhost,127.0.0.1';
+process.env.no_proxy = 'localhost,127.0.0.1';
+
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): BrowserWindow {
@@ -21,6 +25,7 @@ function createWindow(): BrowserWindow {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/preload.js'),
+      webSecurity: false,
     },
   });
 
@@ -34,7 +39,6 @@ function createWindow(): BrowserWindow {
   return mainWindow;
 }
 
-// 设置全局菜单
 function setAppMenu(): void {
   const isMac = process.platform === 'darwin';
   const template = [
@@ -86,7 +90,7 @@ function setAppMenu(): void {
   Menu.setApplicationMenu(menu);
 }
 
-// 启用单实例模式
+// Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -104,6 +108,14 @@ if (!gotTheLock) {
           mainWindow.webContents.send('oauth-token', token);
         }
       }
+      
+      if (url.includes('logout-callback')) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.send('logout-complete');
+        }
+      }
     }
 
     if (mainWindow) {
@@ -113,10 +125,10 @@ if (!gotTheLock) {
   });
 }
 
-// 注册自定义协议
+// Register custom protocol
 app.setAsDefaultProtocolClient('myapp');
 
-// 处理协议回调
+// Handle protocol callbacks
 app.on('open-url', (event, url) => {
   event.preventDefault();
   const tokenMatch = url.match(/token=([^&]+)/);
@@ -128,9 +140,17 @@ app.on('open-url', (event, url) => {
       mainWindow.webContents.send('oauth-token', token);
     }
   }
+  
+  if (url.includes('logout-callback')) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send('logout-complete');
+    }
+  }
 });
 
-// 应用启动
+// App lifecycle
 void app.whenReady().then(() => {
   setAppMenu();
   mainWindow = createWindow();
@@ -142,10 +162,19 @@ app.on('window-all-closed', () => {
   }
 });
 
-// IPC 处理器
+// IPC handlers
 ipcMain.handle('fetch-welcome-message', async () => {
   try {
     const response = await fetch('http://localhost:3001/api/welcome');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Response is not JSON');
+    }
+    
     const data = (await response.json()) as { message: string };
     return data.message;
   } catch (error) {
@@ -153,18 +182,140 @@ ipcMain.handle('fetch-welcome-message', async () => {
   }
 });
 
-// 登录 IPC 处理器
-ipcMain.on('login', () => {
+ipcMain.handle('fetch-user-info', async (event, token: string) => {
   try {
-    const redirectUri = 'myapp://oauth-callback';
-    const loginUrl = `http://localhost:3001/api/auth/github/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
-    void shell.openExternal(loginUrl);
-  } catch (err) {
-    console.error('[Main] 登录流程出错:', err);
+    const response = await fetch('http://localhost:3001/api/auth/github/get_info', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch user info: ${response.status} ${errorText}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Response is not JSON');
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Could not fetch user info: ${errorMessage}`);
   }
 });
 
-// 右键菜单处理器
+ipcMain.handle('verify-token', async (event, token: string) => {
+  try {
+    console.log('[Desktop] Verifying token, length:', token.length);
+    const response = await fetch('http://localhost:3001/api/auth/verify', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    
+    console.log('[Desktop] Verify response status:', response.status);
+    console.log('[Desktop] Verify response headers:', Object.fromEntries(response.headers.entries()));
+    
+    if (!response.ok) {
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        console.log('[Desktop] Error response text:', errorText);
+      } catch {
+        errorText = `HTTP ${response.status}: ${response.statusText}`;
+        console.log('[Desktop] Could not read error response text');
+      }
+      return { valid: false, error: errorText };
+    }
+    
+    let data;
+    try {
+      const responseText = await response.text();
+      console.log('[Desktop] Response text:', responseText);
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('[Desktop] JSON parse error:', parseError);
+      return { valid: false, error: 'Invalid JSON response from server' };
+    }
+    
+    console.log('[Desktop] Parsed data:', data);
+    return data;
+  } catch (error) {
+    console.error('[Desktop] Verify token error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { valid: false, error: errorMessage };
+  }
+});
+
+ipcMain.on('login', () => {
+  try {
+    const frontendUrl = 'http://localhost:4173?from=desktop';
+    void shell.openExternal(frontendUrl);
+  } catch (err) {
+    console.error('Login error:', err);
+  }
+});
+
+ipcMain.on('logout', async (event) => {
+  try {
+    console.log('[Desktop] Logout requested');
+    
+    // 从渲染进程获取当前 token
+    const token = await event.sender.executeJavaScript(`
+      localStorage.getItem('auth_token')
+    `);
+    
+    console.log('[Desktop] Retrieved token:', token ? 'exists' : 'none');
+    
+    if (token) {
+      // 主进程直接调用后端 logout API
+      const response = await fetch('http://localhost:3001/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      console.log('[Desktop] Backend logout response:', response.status);
+      
+      if (response.ok) {
+        console.log('[Desktop] Logout successful');
+        // 清除渲染进程的本地存储
+        await event.sender.executeJavaScript(`
+          localStorage.removeItem('auth_token');
+        `);
+        // 通知渲染进程登出完成
+        event.sender.send('logout-complete');
+        // 通知前端同步登出状态
+        const timestamp = Date.now();
+        const frontendUrl = `http://localhost:4173?sync-logout=true&t=${timestamp}`;
+        console.log('[Desktop] Opening frontend for sync logout:', frontendUrl);
+        void shell.openExternal(frontendUrl);
+      } else {
+        console.error('[Desktop] Logout failed:', response.status);
+        // 即使后端登出失败，也要清除本地状态
+        await event.sender.executeJavaScript(`
+          localStorage.removeItem('auth_token');
+        `);
+        event.sender.send('logout-complete');
+      }
+    } else {
+      console.log('[Desktop] No token to logout');
+      // 没有token也要通知渲染进程登出完成
+      event.sender.send('logout-complete');
+    }
+  } catch (err) {
+    console.error('[Desktop] Logout error:', err);
+    // 出错时也要清除本地状态
+    try {
+      await event.sender.executeJavaScript(`
+        localStorage.removeItem('auth_token');
+      `);
+      event.sender.send('logout-complete');
+    } catch (clearError) {
+      console.error('[Desktop] Failed to clear local storage:', clearError);
+    }
+  }
+});
+
 ipcMain.handle('show-context-menu', (event): void => {
   const template: Electron.MenuItemConstructorOptions[] = [
     { role: 'copy' },
@@ -173,13 +324,13 @@ ipcMain.handle('show-context-menu', (event): void => {
     { role: 'selectAll' },
     { type: 'separator' },
     {
-      label: '刷新页面',
+      label: 'Refresh',
       click: (): void => {
         event.sender.reload();
       },
     },
     {
-      label: '开发者工具',
+      label: 'Dev Tools',
       click: (): void => {
         event.sender.openDevTools();
       },
