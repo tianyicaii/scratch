@@ -50,4 +50,5 @@ coverage/
 
 # Temporary folders
 tmp/
-temp/ 
+temp/
+backend/data/users.json
