@@ -1,0 +1,37 @@
+{
+  "name": "supabase-multi-env-project",
+  "version": "1.0.0",
+  "description": "Supabase 多环境项目，支持开发、测试、生产环境",
+  "main": "index.js",
+  "scripts": {
+    "dev": "supabase start",
+    "build": "supabase functions build",
+    "deploy:dev": "supabase db push && supabase functions deploy",
+    "deploy:staging": "NODE_ENV=staging supabase db push && NODE_ENV=staging supabase functions deploy",
+    "deploy:prod": "NODE_ENV=production supabase db push && NODE_ENV=production supabase functions deploy",
+    "migration:new": "supabase migration new",
+    "migration:up": "supabase db push",
+    "migration:reset": "supabase db reset",
+    "functions:serve": "supabase functions serve",
+    "functions:deploy": "supabase functions deploy",
+    "link:dev": "supabase link --project-ref",
+    "link:staging": "supabase link --project-ref",
+    "link:prod": "supabase link --project-ref"
+  },
+  "keywords": [
+    "supabase",
+    "database",
+    "edge-functions",
+    "multi-environment"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.10.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.0"
+  }
+} 
