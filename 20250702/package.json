@@ -23,7 +23,8 @@
     "test:integration": "jest --config test/jest.config.js test/integration",
     "test:unit": "jest --config test/jest.config.js test/unit",
     "test:e2e": "jest --config test/jest.config.js test/e2e",
-    "test:example": "npx ts-node test/integration/users-api-example.ts"
+    "test:example": "npx ts-node test/integration/users-api-example.ts",
+    "test:register": "npx ts-node test/integration/register-api-example.ts"
   },
   "keywords": [
     "supabase",

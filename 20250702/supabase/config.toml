@@ -77,7 +77,11 @@ enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
+# OTP settings
+otp_length = 6
+otp_expiry = 3600
+max_frequency = "1m0s"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

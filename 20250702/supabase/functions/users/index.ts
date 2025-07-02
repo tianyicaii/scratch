@@ -5,14 +5,6 @@
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// 声明 Deno 全局对象 (为了避免 lint 错误)
-declare const Deno: {
-  env: {
-    get(key: string): string | undefined
-  }
-  serve(handler: (request: Request) => Response | Promise<Response>): void
-}
-
 // 用户接口定义
 interface User {
   id?: string
