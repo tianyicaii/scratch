@@ -26,11 +26,12 @@
       "@/lib/*": ["lib/*"],
       "@/functions/*": ["supabase/functions/*"]
     },
-    "types": ["node"]
+    "types": ["node", "jest"]
   },
   "include": [
     "lib/**/*",
-    "supabase/functions/**/*"
+    "supabase/functions/**/*",
+    "test/**/*"
   ],
   "exclude": [
     "node_modules",

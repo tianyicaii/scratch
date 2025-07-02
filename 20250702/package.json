@@ -16,7 +16,14 @@
     "functions:deploy": "supabase functions deploy",
     "link:dev": "supabase link --project-ref",
     "link:staging": "supabase link --project-ref",
-    "link:prod": "supabase link --project-ref"
+    "link:prod": "supabase link --project-ref",
+    "test": "jest --config test/jest.config.js",
+    "test:watch": "jest --config test/jest.config.js --watch",
+    "test:coverage": "jest --config test/jest.config.js --coverage",
+    "test:integration": "jest --config test/jest.config.js test/integration",
+    "test:unit": "jest --config test/jest.config.js test/unit",
+    "test:e2e": "jest --config test/jest.config.js test/e2e",
+    "test:example": "npx ts-node test/integration/users-api-example.ts"
   },
   "keywords": [
     "supabase",
@@ -28,10 +35,14 @@
   "license": "MIT",
   "devDependencies": {
     "@supabase/supabase-js": "^2.39.0",
-    "typescript": "^5.3.0",
-    "@types/node": "^20.10.0"
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.10.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.0"
   },
   "dependencies": {
     "dotenv": "^16.3.0"
   }
-} 
+}
